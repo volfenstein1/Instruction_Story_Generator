@@ -11,15 +11,15 @@ st.set_page_config(page_title="Story Generator")
 st.title("Story Generator")
 
 base_model = "SimpleStories/SimpleStories-35M"
-peft_model = "volfenstein/LORA-story-generator-adapter"
+peft_model = "volfenstein/LORA-simple-stories-generator-adapter"
 
+# config = PeftConfig.from_pretrained(peft_model)
 model = AutoModelForCausalLM.from_pretrained(
     base_model, trust_remote_code=True
 )
 tokenizer = AutoTokenizer.from_pretrained(base_model)
 model, tokenizer = setup_chat_format(model, tokenizer)
 
-config = PeftConfig.from_pretrained(peft_model)
 model = PeftModel.from_pretrained(model, peft_model)
 
 
