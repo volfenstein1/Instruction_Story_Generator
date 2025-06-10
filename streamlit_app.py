@@ -2,15 +2,31 @@ import streamlit as st
 import textstat
 from transformers import pipeline
 import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer
+from peft import PeftModel, PeftConfig
+from trl import setup_chat_format
 
 st.set_page_config(page_title="Story Generator")
 
 st.title("Story Generator")
 
+base_model = "SimpleStories/SimpleStories-35M"
+peft_model = "volfenstein/LORA-story-generator-adapter"
 
-@st.cache_resource
+model = AutoModelForCausalLM.from_pretrained(
+    base_model, trust_remote_code=True
+)
+tokenizer = AutoTokenizer.from_pretrained(base_model)
+model, tokenizer = setup_chat_format(model, tokenizer)
+
+config = PeftConfig.from_pretrained(peft_model)
+model = PeftModel.from_pretrained(model, peft_model)
+
+
 def generate_story(topic, theme, wordcount, paragraphs, complexity):
-    user_prompt = """Topic: {topic}
+    user_prompt = """Write a story which matches the following criteria:
+
+    Topic: {topic}
 
     Theme: {theme}
 
@@ -36,12 +52,12 @@ def generate_story(topic, theme, wordcount, paragraphs, complexity):
 
     generator = pipeline(
         "text-generation",
-        model="volfenstein/wolfgang-story-generator",
+        model=model,
         device=device,
     )
     output = generator(
         [{"role": "user", "content": user_prompt}],
-        max_new_tokens=128,
+        max_new_tokens=512,
         return_full_text=False,
     )[0]
 
@@ -181,7 +197,7 @@ if selected_theme and selected_topic and submit:
         story = generate_story(
             topic=selected_topic,
             theme=selected_theme,
-            wordcount=selected_wordcount // 25,
+            wordcount=selected_wordcount,
             paragraphs=selected_paragraphs,
             complexity=selected_complexity,
         )
