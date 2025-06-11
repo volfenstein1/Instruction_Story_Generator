@@ -23,22 +23,20 @@ model, tokenizer = setup_chat_format(model, tokenizer)
 model = PeftModel.from_pretrained(model, peft_model)
 
 
-def generate_story(topic, theme, wordcount, paragraphs, complexity):
-    user_prompt = """Write a story which matches the following criteria:
-
-    Topic: {topic}
+def generate_story(topic, theme, wordcount, wordlength, complexity):
+    user_prompt = """Topic: {topic}
 
     Theme: {theme}
 
     Wordcount: {wordcount}
 
-    Paragraphs: {paragraphs}
+    Wordlength: {wordlength}
 
     Complexity: {complexity}""".format(
         topic=topic,
         theme=theme,
         wordcount=wordcount,
-        paragraphs=paragraphs,
+        wordlength=wordlength,
         complexity=complexity,
     )
 
@@ -53,6 +51,7 @@ def generate_story(topic, theme, wordcount, paragraphs, complexity):
     generator = pipeline(
         "text-generation",
         model=model,
+        tokenizer=tokenizer,
         device=device,
     )
     output = generator(
@@ -62,6 +61,23 @@ def generate_story(topic, theme, wordcount, paragraphs, complexity):
     )[0]
 
     return output["generated_text"]
+
+
+def avg_word_length(text):
+    punctuations = ".,!?;:'\"()-"
+    for p in punctuations:
+        text = text.replace(p, " ")
+
+    # Split into words by whitespace
+    words = text.split()
+
+    if not words:
+        return 0  # Avoid division by zero
+
+    total_length = sum(len(word) for word in words)
+    average_length = total_length / len(words)
+
+    return average_length
 
 
 themes = [
@@ -184,11 +200,13 @@ selected_topic = right.selectbox(
     placeholder="Select a topic...",
 )
 
-selected_wordcount = st.slider("Target word count:", 50, 800, step=25)
+selected_wordcount = st.slider("Target word count:", 100, 500, step=25)
 
-selected_paragraphs = st.slider("Number of paragraphs", 1, 9)
+selected_wordlength = st.slider(
+    "Target Average Word Length", 3.2, 4.2, step=0.1
+)
 
-selected_complexity = st.slider("Complexity:", 0, 12)
+selected_complexity = st.slider("Complexity:", 0, 7)
 
 submit = st.button("Generate")
 
@@ -198,15 +216,15 @@ if selected_theme and selected_topic and submit:
             topic=selected_topic,
             theme=selected_theme,
             wordcount=selected_wordcount,
-            paragraphs=selected_paragraphs,
+            wordlength=selected_wordlength,
             complexity=selected_complexity,
         )
     st.write(story)
     st.write(
         "Word count:",
         len(story.split(" ")),
-        "Paragraphs:",
-        len(story.split("\n")),
+        "Average Word Length:",
+        round(avg_word_length(story), 2),
         "Flesch Kincaid Grade:",
-        round(textstat.flesch_kincaid_grade(story), 1),
+        round(textstat.flesch_kincaid_grade(story), 2),
     )
